@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+	<file>drm.ico</file>
+        <file>AUTHORS</file>
+        <file>COPYING</file>
+	<file>drm.ico</file>
+        <file>res/globstyle.qss</file>
+        <file>res/sw-bandplan.xml</file>
+    </qresource>
+</RCC>

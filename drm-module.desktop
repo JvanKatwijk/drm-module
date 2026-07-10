@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=drm-module
+Exec=drm-module
+Icon=drm
+Type=Application
+Categories=AudioVideo;
+Comment=A DRM decoder using Qt and C++
