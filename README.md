@@ -17,6 +17,7 @@ single decoder for DRM. The decoder is a copy of the decoder in the
 SW receiver software.
 
 The decoder uses the FDK_AAC library for AAC and xHE-AAC decoding.
+
 -------------------------------------------------------------------------
 		The GUI
 -------------------------------------------------------------------------
