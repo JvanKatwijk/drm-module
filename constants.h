@@ -60,9 +60,13 @@ using namespace std;
 #define	MINIMUM(x, y)	((x) < (y) ? x : y)
 #define	MAXIMUM(x, y)	((x) > (y) ? x : y)
 
-#define	CURRENT_VERSION	"0.7"
+#define	CURRENT_VERSION	"0.8"
 
-#define INRATE  192000
 #define WORKING_RATE    12000
 #define FILTER_DEFAULT  21
+
+static inline  
+float   compute_avg     (float oldVal, float newVal, float Alpha) {
+        return (1 - Alpha) * oldVal + Alpha * newVal;
+}
 

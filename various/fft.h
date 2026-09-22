@@ -40,28 +40,14 @@
 
 class	common_fft {
 public:
-			common_fft	(int32_t);
+			common_fft	(int32_t, bool dir = false);
 			~common_fft	();
 	void		do_FFT		(Complex *);
-	void		do_IFFT		(Complex *);
-	void		do_Shift	();
 private:
 	int32_t		fft_size;
+	bool		dir;
 	Complex		*vector;
 	Complex		*vector1;
-	FFTW_PLAN	plan;
-	void		Scale		(Complex *);
-};
-
-class	common_ifft {
-public:
-			common_ifft	(int32_t);
-			~common_ifft	();
-	Complex		*getVector	();
-	void		do_IFFT		();
-private:
-	int32_t		fft_size;
-	Complex	*vector;
 	FFTW_PLAN	plan;
 	void		Scale		(Complex *);
 };

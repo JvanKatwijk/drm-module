@@ -9,12 +9,12 @@ CONFIG	-= console
 TARGET	= drm-module
 
 QMAKE_CXXFLAGS	+= -std=c++17 
-QMAKE_CFLAGS	+= -flto -ffast-math 
-QMAKE_CXXFLAGS	+= -flto -ffast-math 
-QMAKE_LFLAGS	+= -flto
-#QMAKE_CFLAGS	+= -g
-#QMAKE_CXXFLAGS	+= -g
-#QMAKE_LFLAGS	+= -g
+#QMAKE_CFLAGS	+= -flto -ffast-math 
+#QMAKE_CXXFLAGS	+= -flto -ffast-math 
+#QMAKE_LFLAGS	+= -flto
+QMAKE_CFLAGS	+= -g
+QMAKE_CXXFLAGS	+= -g
+QMAKE_LFLAGS	+= -g
 #QMAKE_CXXFLAGS	+= -fsanitize=address
 #QMAKE_CFLAGS	+= -fsanitize=address
 #QMAKE_LFLAGS	+= -fsanitize=address
@@ -74,8 +74,10 @@ HEADERS += ./constants.h \
 	   ./various/drm-converter.h \
 	   ./various/program-list.h \
 	   ./various/bandplan.h \
+	   ./various/iq-filter.h \
 	   ./various/settings-handler.h \
 	   ./filters/decimator.h \
+	   ./filters/down-converter.h \
 	   ./filters/drm-bandfilter.h \
 	   ./filters/lowpassfilter.h \
 	   ./filters/rate-converter.h \
@@ -141,9 +143,11 @@ SOURCES += ./main.cpp \
            ./various/fft.cpp \
            ./various/program-list.cpp \
            ./various/bandplan.cpp \
+	   ./various/iq-filter.cpp \
 	   ./various/settings-handler.cpp \
 	   ./various/drm-converter.cpp  \
 	   ./filters/decimator.cpp \
+	   ./filters/down-converter.cpp \
 	   ./filters/drm-bandfilter.cpp \
 	   ./filters/lowpassfilter.cpp \
 	   ./filters/rate-converter.cpp \

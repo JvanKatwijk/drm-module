@@ -18,8 +18,8 @@
 
 std::complex<float> oscillator::next (int step) {
 	if ((step > rate) || (step < -rate)) {
-	   fprintf (stderr, "step fout %d\n", step);
-	   step = 0;
+	   fprintf (stderr, "step fout %d (rate %d) \n", step, rate);
+	   step = rate / 2;
 	}
 	phase += step;
 	if (phase >= rate)

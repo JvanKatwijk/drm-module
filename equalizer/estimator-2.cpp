@@ -50,7 +50,9 @@ Complex createExp (float s, int power) {
 	estimator_2::estimator_2 (Complex 	**refFrame,
 	                          uint8_t	Mode,
 	                          uint8_t	Spectrum,
-	                          int16_t	refSymbol) {
+	                          int16_t	refSymbol):
+	                                        fft_a (Tu_of (Mode), false),
+	                                        fft_b (Tu_of (Mode), true) {
 int16_t	next	= 0;
 
         this    -> refFrame     = refFrame;
@@ -62,7 +64,6 @@ int16_t	next	= 0;
 	fftSize			= Tu_of (Mode);
 	numberofCarriers	= K_max - K_min + 1;
 	numberofPilots		= getnrPilots (refSymbol);
-//	numberofTaps		= numberofPilots;
 	numberofTaps		= Tg_of (Mode);
 	F_p			= MatrixXd (numberofPilots, numberofTaps);
 	S_p			= MatrixXd (numberofPilots,
@@ -122,7 +123,7 @@ int16_t	next	= 0;
 //	MatrixXd D	= MatrixXd (numberofTaps, numberofTaps);
 //	D	= F_p. transpose () * F_p;
 //	A_p_inv	= D. inverse () * F_p. transpose () * S_p. inverse ();
-//	A_p	= S_p * F_p;
+	A_p	= S_p * F_p;
 	A_p	= CoV * S_p * F_p;
 	A_p_inv = A_p. transpose () * (A_p * A_p. transpose ()). inverse ();
 }
@@ -132,7 +133,7 @@ int16_t	next	= 0;
 
 //	Stel dat je de kanaaltaps in the tijdsdomein in een
 //	kolomvector h steekt (L x 1).
-//	Dan is het kanaal in het frequentiedomein f = F * h
+//	Dan zijn de taps in het frequentiedomein f = F * h
 //	waarbij F de eerste kolommen bevat van een N x N DFT matrix,
 //	dus F is een N x L matrix (N is het aantal carriers).
 //
@@ -142,13 +143,13 @@ int16_t	next	= 0;
 //	is dan het kanaal):
 //	x = diag(s) * f = diag(s) * F * h + w
 //	Of als we enkel naar de pilot carriers kijken hebben we
-//	x_p = diag(s_p) * F_p * h = A_p * h + w    (1)
+//	x_p = diag (s_p) * F_p * h = A_p * h + w    (1)
 //	waarbij diag(y) een diagonaalmatrix is met y op de diagonaal,
 //	en x_p de geobserveerde waarden aan de "receiver" kant is
 //	diags (s)^-1 * x_p = F_p * h
 //	h = F_p ^ -1 * diags (s)^-1 * x_p
-//	D = (F_p ^ h * F_p)
-//	h = F_p ^ h * D ^ -1 * diags (s) ^ -1 * x_p
+//	D = (F_p ^ -1 * F_p)
+//	h = F_p ^ -1 * D ^ -1 * diags (s) ^ -1 * x_p
 //	s_p en F_p opgebouwd zijn uit de rijen van s en F
 //	overeenkomstig de pilot posities en A_p = diag(s_p) * F_p.
 //	Dus (1) is dan simpelweg een stelsel van vergelijkingen
@@ -183,10 +184,15 @@ Vector  X_p  (numberofPilots);
 
 void	estimator_2::estimate_2 (std::complex<float> *testRow,
 	                            std::complex<float> *resultRow) {
+	estimate_2a (testRow, resultRow);
+}
+
+void	estimator_2::estimate_2a (std::complex<float> *testRow,
+	                            std::complex<float> *resultRow) {
 Vector	h_td (numberofTaps);
 Vector  H_fd (numberofPilots);
 Vector  X_p  (numberofPilots);
-//	X_p are the observed values, and we have to "solve"
+//X_p are the observed values, and we have to "solve"
 //	the solution for the channel taps in the time domain is h_td
 //	X_p     = A_P * h_td
 //	h_td    = A_p_inv *  X_p;
@@ -201,12 +207,31 @@ Vector  X_p  (numberofPilots);
 //
 	for (int carrier = K_min; carrier <= K_max; carrier ++)
 	   resultRow [indexFor (carrier)] = std::complex<float> (0, 0);
-        for (int index = 0; index < numberofTaps; index ++) {
+	for (int index = 0; index < numberofTaps; index ++) {
            resultRow [2 * index] = h_td [index];
-           resultRow [2 * index + 1] = h_td [index];
+	   resultRow [2 * index + 1] = h_td [index];
 	}
 }
+	
+void	estimator_2::estimate_2b (std::complex<float> *testRow,
+	                            std::complex<float> *resultRow) {
+Complex buffer [Tu_of (Mode)];
 
+	for (int index = 0; index < Tu_of (Mode); index ++)
+	   buffer [index] = Complex (0, 0);
+	for (int index = 0; index < numberofPilots; index ++) {
+	   Complex pv = getPilotValue (Mode, Spectrum,
+	                              refSymbol, pilotTable [index]);
+	   buffer [pilotTable [index]] =
+	            testRow [pilotTable [index]] * conj (pv);
+	}
+	fft_b. do_FFT (buffer);
+	for (int index = 0; index < numberofTaps; index ++) {
+	   resultRow [2 * index] = buffer [index];
+	   resultRow [2 * index + 1] = buffer [index];
+	}
+}
+	
 int16_t estimator_2::indexFor (int16_t carrier) {
         return carrier - K_min;
 }

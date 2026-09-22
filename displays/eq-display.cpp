@@ -51,10 +51,11 @@ double Y2_values [amount];
 	Y1_values [amount - 1]	= 0;
 	showSpectrum (Y1_values, Y2_values,
 	              amount,
-	              0, amount, 0, max);
+	              0, amount, 0, 1.5 * max);
 }
 
 void	eqDisplay::show_channel	(const std::complex<float> *V, int amount) {
 	show_pilots (V, amount);
 }
+
 

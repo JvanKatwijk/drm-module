@@ -47,20 +47,12 @@
 
 #define  _USE_MATH_DEFINES
 #include	<math.h>
-#define	STEP	(INRATE / WORKING_RATE)
+#define	STEP	(OUTRATE / WORKING_RATE)
 	RadioInterface::RadioInterface (QSettings	*s,
 	                                const QString	&stationList,
 	                                bandPlan	*my_bandPlan):
 	                                  superFrame (nullptr),
 	                                  inputData  (32 * 32768),
-	                                  passbandFilter (11,
-                                                         -8000,
-                                                         +8000,
-                                                         INRATE),
-                                          theDecimator (STEP + 1,
-	                                                -5500,
-	                                                 5500,
-	                                                 INRATE, STEP),
 	                                  workBuffer  (32 * 32768),
 	                                  audioOut (16 * 32768),
 	                                  iqBuffer (32768),
@@ -83,7 +75,7 @@
 	scopeMode		= SHOW_PILOTS;
 	show ();
 	running. store (false);
-
+	setWindowTitle	("drm module");
 	myLine			= nullptr;
 	this	-> my_bandPlan	= my_bandPlan;
 	drmError		= false;
@@ -122,7 +114,8 @@
 	}
 	
 	audioHandler -> selectDefaultDevice ();
-
+	connect (iqSelector, &QCheckBox:: checkStateChanged,
+                 this, &RadioInterface::handle_iqSelector);
 }
 
 	RadioInterface::~RadioInterface () {
@@ -152,6 +145,8 @@ void    RadioInterface::handle_hostName         () {
                  this, &RadioInterface::handle_connection_failed);
         connect (inputHandler, &messageHandler::connection_succeeded,
                  this, &RadioInterface::handle_connection_succeeded);
+	connect (inputHandler, &messageHandler::set_disconnect,
+	         this, &RadioInterface::set_disconnect);
         hostNameSelector   -> setInputMask ("000.000.000.000");
         hostNameSelector   -> setText ("127.0.0.1");
         inputHandler    -> tryConnect (hostNameSelector -> text (),
@@ -214,12 +209,9 @@ void	RadioInterface::handle_connection_succeeded () {
 //
 void	RadioInterface::sampleHandler	(int amount) {
 	(void)amount;
-	while (inputData. GetRingBufferReadAvailable () > INRATE / 10) {
+	while (inputData. GetRingBufferReadAvailable () > WORKING_RATE / 10) {
 	   Complex sample;
 	   inputData. getDataFromBuffer (&sample, 1);
-	   sample	= passbandFilter. Pass (sample);
-	   if (!theDecimator. Pass (sample, &sample))
-	      continue;
 	   workBuffer. putDataIntoBuffer (&sample, 1);
         }
 }
@@ -830,7 +822,7 @@ void	RadioInterface::report_vfoFrequency	(int32_t freq) {
 
 void    RadioInterface::setFrequency   (int32_t freq) {
 	if (inputHandler != nullptr) {
-	   fprintf (stderr, "set freq to %d (%d)\n", freq, KHz (freq));
+//	   fprintf (stderr, "set freq to %d (%d)\n", freq, KHz (freq));
            inputHandler -> setVFOFrequency (KHz (freq));
 	   bandLabel -> setText (my_bandPlan -> getFrequencyLabel (freq));
 	}                
@@ -910,25 +902,27 @@ int16_t	outputDevice;
 }
 
 void	RadioInterface::handle_quit	() {
-	running. store (false);
-	my_Reader. stop ();
-	m_worker        -> join ();
-	delete 	m_worker;
-	m_worker = nullptr;
-	delete	my_eqDisplay;
-	my_eqDisplay	= nullptr;
-	delete	my_iqDisplay;
-	my_iqDisplay	= nullptr;
-	if (inputHandler != nullptr)
-	   delete	inputHandler;
-	inputHandler	= nullptr;
-	fprintf (stderr, "we gaan saven\n");
 	thePresets. saveTable ();
 	thePresets. hide ();
-	close ();
 }
 
 void	RadioInterface::show_signalPower	(double v) {
 	this	-> snrDisplay -> display (v);
+}
+
+void	RadioInterface::protectionLevel		(const QString &s) {
+	countryLabel	-> setText (s);
+}
+
+void	RadioInterface::handle_iqSelector	(int d) {
+	(void)d;
+	if (inputHandler != nullptr)
+	   inputHandler	-> set_iqSelect (iqSelector -> isChecked ());
+}
+
+void	RadioInterface::set_disconnect		() {
+	thePresets. saveTable ();
+	thePresets. hide ();
+	close ();
 }
 

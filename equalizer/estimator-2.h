@@ -26,7 +26,7 @@
 #include	<QString>
 #include	"constants.h"
 #include	<vector>
-
+#include	"fft.h"
 using namespace	Eigen;
 
 //	The processor for estimating the channel(s) of a single
@@ -38,7 +38,12 @@ public:
 		~estimator_2	();
 	void	estimate	(Complex *, Complex *);
 	void	estimate_2	(Complex *, Complex *);
+	void	estimate_2a	(Complex *, Complex *);
+	void	estimate_2b	(Complex *, Complex *);
 private:
+	common_fft	fft_a;
+	common_fft	fft_b;
+	bool		dir;
 	Complex		**refFrame;
         uint8_t         Mode;
         uint8_t         Spectrum;
@@ -62,6 +67,7 @@ private:
 	MatrixXd	CoV;
 	MatrixXd	CoV_r;
 	std::vector<int16_t>	pilotTable;
+
 };
 
 

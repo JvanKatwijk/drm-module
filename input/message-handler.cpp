@@ -25,32 +25,36 @@
 #include	<QJsonObject>
 #include	"message-handler.h"
 
+ 
+float   Alpha   = 1.0 / 12000;
+
+#define	DEC_STEP	(CONV_RATE/WORKING_RATE)
 static
 QString IQstarter       = "{ \"event_type\":\"iq_stream_enable\",\"property\":\"\",\"value\":\"%1\" }";
 
-#define STEP            (DEVICE_RATE / LOWRATE)
-
 	messageHandler::messageHandler (RingBuffer<Complex> *b,
 	                                int startFrequency):
-	                                    theOscillator (2000000),
-	                                    _I_Buffer (32 * 32768),
-	                                    firstDecimator (STEP + 1,
-	                                                    0,
-	                                                    20000,
-                                                            DEVICE_RATE,
-                                                            STEP) {
-
+	                                    theOscillator (DEVICE_RATE),
+	                                    theFilter (15, 5500, DEVICE_RATE),
+	                                    theDecimator (DEC_STEP,
+	                                                  2 * DEC_STEP, 5500,
+	                                                  CONV_RATE),
+	                                    _I_Buffer (32 * 32768) {
 	_O_Buffer		= b;
 	vfo_frequency		= startFrequency;
-	float denominator	= float (OUTRATE) / DIVIDER;
-	float inVal		= float (LOWRATE) / DIVIDER;
-	for (int i = 0; i < OUTRATE / DIVIDER; i ++) {
+	float denominator	= float (DEVICE_RATE) / DIVIDER;
+	float inVal		= float (DEVICE_RATE) / DIVIDER;
+	for (int i = 0; i < CONV_RATE / DIVIDER; i ++) {
 	   mapTable_int [i]	= int (floor (i * (inVal / denominator)));
 	   mapTable_float [i] =
 	                      i * (inVal / denominator) - mapTable_int [i];
 	}
 	convIndex		= 0;
 	theSocket		= nullptr;
+
+	dcReal			= 0;
+	dcImag			= 0;
+	iqFilter_on		= false;
 }
 
 	messageHandler::~messageHandler	() {
@@ -67,7 +71,7 @@ void	messageHandler::tryConnect (const QString &hostAddress,
 	connect (theSocket, &socketHandler::reportConnect,
 	         this, &messageHandler::connection_set);
 	connect (theSocket, &socketHandler::reportDisconnect,
-	         this, &messageHandler::no_connection);
+	         this, &messageHandler::reportDisconnect);
 	theSocket	-> tryConnect ();
 }
 
@@ -76,9 +80,18 @@ void	messageHandler::no_connection	() {
 	            this, &messageHandler::connection_set);
 	disconnect (theSocket, &socketHandler::reportDisconnect,
 	            this, &messageHandler::no_connection);
-	delete theSocket;
-	theSocket = nullptr;
 	emit connection_failed ();
+}
+
+void	messageHandler::reportDisconnect	() {
+	disconnect (theSocket, &socketHandler::reportConnect,
+	            this, &messageHandler::connection_set);
+	disconnect (theSocket, &socketHandler::reportDisconnect,
+	            this, &messageHandler::reportDisconnect);
+	fprintf (stderr, "Reporting a disconnect\n");
+//	delete theSocket;
+//	theSocket = nullptr;
+	emit set_disconnect ();
 }
 
 void	messageHandler::connection_set	() {
@@ -88,7 +101,10 @@ void	messageHandler::connection_set	() {
                  this, &messageHandler::binDataAvailable);
 	connect (theSocket, &socketHandler::dispatchMessage,
                  this, &messageHandler::dispatchMessage);
-	set_filterBW	(12000);
+
+	setProperty ("device_sample_rate",
+	                              QString::number (DEVICE_RATE));
+	set_filterBW	(10500);
 	setProperty ("device_center_frequency",
 	                              QString::number (vfo_frequency));
         setProperty ("device_vfo_frequency",
@@ -98,13 +114,12 @@ void	messageHandler::connection_set	() {
 	emit	connection_succeeded ();
 }
 //
-//	setVFOFrequency is used by thedrm code
+//	setVFOFrequency is used by the drm code
 void	messageHandler::setVFOFrequency	(int freq) {
 	setProperty ("device_center_frequency", QString::number (freq));
 	setProperty ("device_vfo_frequency", QString::number (freq));
 	askProperty ("device_center_frequency");
 	askProperty ("device_vfo_frequency");
-//	fprintf (stderr, "De freq zou nu %d moeten zijn\n", freq);
 	this -> vfo_frequency	= freq;
 }
 
@@ -120,9 +135,9 @@ void    messageHandler::iqStreamEnable  (bool b) {
 }
 
 //	Transfer is in segments of 1 msec
+//	DEVICE_RATE = 125000
 void	messageHandler::binDataAvailable () {
 	std::complex<int16_t>  inBuffer [DEVICE_RATE / 1000];
-//	std::complex<float> outBuffer [OUTRATE / 1000];
 	while (_I_Buffer. GetRingBufferReadAvailable () >=
 	                                            DEVICE_RATE / 1000) {
 	   _I_Buffer. getDataFromBuffer (inBuffer, DEVICE_RATE / 1000);
@@ -130,28 +145,41 @@ void	messageHandler::binDataAvailable () {
 	      continue;
 
 	   for (int i = 0; i < DEVICE_RATE / 1000; i ++) {
-	      Complex temp = Complex (real (inBuffer [i]) / 2048.0,
-	                              imag (inBuffer [i]) / 2048.0);
-	      temp *= conj (theOscillator.
+	      Complex temp = Complex (real (inBuffer [i]) / (2 * 2048.0),
+	                              imag (inBuffer [i]) / (2 * 2048.0));
+	      temp	*= conj (theOscillator.
 	                        next (vfo_frequency - center_frequency));
-	      if (!firstDecimator. Pass (temp, &temp))
-	         continue;
-	      Complex localBuf [OUTRATE / 1000];
+//	      dcReal	= compute_avg (dcReal, real (temp), Alpha);
+//	      dcImag	= compute_avg (dcImag, imag (temp), Alpha);
+//	      temp	= Complex (real (temp) - dcReal,
+//	                           imag (temp) - dcImag);
+              if (iqFilter_on)
+                 temp = the_iqFilter. process (temp);
+
+	      temp	= theFilter. Pass (temp);
+
+	      Complex localBuf [WORKING_RATE / 1000];
 	      convBuffer [convIndex ++] = temp;
+//
+//	resample from 125000 -> 120000 and then decimate to 12000
 	      if (convIndex > CONV_SIZE) {
-	         for (int j = 0; j < OUTRATE / 1000; j ++) {
+	         int teller = 0;
+	         for (int j = 0; j < CONV_RATE / 1000; j ++) {
 	            int16_t inpBase     = mapTable_int [j];
                     float   inpRatio    = mapTable_float [j];
-	            localBuf [j]        =
+	            Complex temp	=
                                      convBuffer [inpBase + 1] * inpRatio +  
                                      convBuffer [inpBase] * (1 - inpRatio);
+	            if (theDecimator. process (temp, temp))
+	               localBuf [teller ++]	 = temp;
                  }
-	         _O_Buffer -> putDataIntoBuffer (localBuf, OUTRATE / 1000);
+	         _O_Buffer -> putDataIntoBuffer (localBuf, teller);
 	         convBuffer [0] = convBuffer [CONV_SIZE];
 	         convIndex = 1;
 	      }
-	      if (_O_Buffer -> GetRingBufferReadAvailable () > OUTRATE / 10)
-	         emit dataAvailable (OUTRATE / 10);
+	      if (_O_Buffer -> GetRingBufferReadAvailable () >
+	                                             WORKING_RATE / 10)
+	         emit dataAvailable (WORKING_RATE / 10);
 	   }
 	}
 }
@@ -178,8 +206,8 @@ QJsonDocument doc = QJsonDocument::fromJson (m. toUtf8 ());
               double rate       = samplerate. toDouble (&b);
               if (!b)
                  return;
-//      we expect 2000000 and do not process (much) lower/higher rates
-              if ((rate > 2500000) || (rate < 1500000)) {
+//      we expect DEVICE_RATE and do not process other rates
+              if (rate != DEVICE_RATE) {
 //	          emit rateError ();
                  return;
               }
@@ -194,6 +222,8 @@ QJsonDocument doc = QJsonDocument::fromJson (m. toUtf8 ());
 	      if (!b)
 	         return;
 	      center_frequency	= (int)freq;
+//	      fprintf (stderr, "centerfreq changed %d -> %d\n",
+//	                                     (int)freq, freq - vfo_frequency);
 	   }
 	   if (property == "device_vfo_frequency") {
 	      QString freqString = obj ["value"]. toString ();
@@ -203,6 +233,10 @@ QJsonDocument doc = QJsonDocument::fromJson (m. toUtf8 ());
 	      if (!b)
 	         return;
 	      vfo_frequency	= (int)freq;
+//	      fprintf (stderr, "vfo changed %d (%d) -> %d\n",
+//	                                    (int)freq,
+//	                                    center_frequency,
+//	                                    center_frequency - vfo_frequency);
 	   }
 	}
 //
@@ -262,5 +296,9 @@ QString  message = "{ \"event_type\":\"get_property\",\"property\":\"%1\" }";
 
 void	messageHandler::set_filterBW	(uint32_t bw) {
 	setProperty ("filter_bandwidth", QString::number (bw));
+}
+
+void	messageHandler::set_iqSelect	(bool b) {
+	iqFilter_on		= b;
 }
 

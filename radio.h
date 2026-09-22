@@ -35,7 +35,7 @@
 //      for the payload we have
 #include	"ringbuffer.h"
 #include	"drm-bandfilter.h"
-#include	"decimator.h"
+#include	"down-converter.h"
 #include	"basics.h"
 #include	"reader.h"
 #include	"backend-controller.h"
@@ -65,9 +65,7 @@ public:
 	void			WorkerFunction	();
 private:
 	QSettings		*drmSettings;
-	RingBuffer<Complex> inputData;
-	drmBandfilter           passbandFilter;
-        decimator		theDecimator;
+	RingBuffer<Complex>	inputData;
 
 	RingBuffer<Complex>	workBuffer;
 	RingBuffer<Complex>	audioOut;
@@ -181,8 +179,12 @@ public slots:
 	void		show_eqsymbol		(int);
 	void		showIQ			(int);
 	void		handle_quit		();
+	void		set_disconnect		();
 
 	void		show_signalPower	(double);
+	void		protectionLevel		(const QString &);
+
+	void		handle_iqSelector	(int);
 signals:
 	void		audioAvailable		(int, int);
 	void		setTimeSync		(bool);

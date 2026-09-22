@@ -25,10 +25,11 @@
 /*
  */
 
-	common_fft::common_fft (int32_t fft_size) {
+	common_fft::common_fft (int32_t fft_size, bool dir) {
 int32_t	i;
 
-	this	-> fft_size = fft_size;
+	this	-> fft_size	= fft_size;
+	this	-> dir		= dir;
 
 	vector	= (Complex *) FFTW_MALLOC (sizeof (Complex) * fft_size);
 	for (i = 0; i < fft_size; i ++)
@@ -45,54 +46,18 @@ int32_t	i;
 }
 
 void	common_fft::do_FFT (Complex *v) {
-	for (int i = 0; i <fft_size; i ++)
-	   vector [i] = v [i];
+	if (dir)
+	   for (int i = 0; i <fft_size; i ++)
+	      vector [i] = conj (v [i]);
+	else
+	   for (int i = 0; i <fft_size; i ++)
+	      vector [i] = v [i];
 	FFTW_EXECUTE (plan);
+	if (dir)
+	   for (int i = 0; i < fft_size; i ++)
+	      v [i] = conj (vector [i]);
+	else
 	for (int i = 0; i < fft_size; i ++)
 	   v [i] = vector [i];
 }
-
-/*
- * 	and a wrapper for the inverse transformation
- */
-	common_ifft::common_ifft (int32_t fft_size) {
-int32_t	i;
-
-//	if ((fft_size & (fft_size - 1)) == 0)
-	   this	-> fft_size = fft_size;
-//	else
-//	   this -> fft_size = 4096;	/* just a default	*/
-
-	vector	= (Complex *)FFTW_MALLOC (sizeof (Complex) * fft_size);
-	for (i = 0; i < fft_size; i ++)
-	   vector [i] = 0;
-	plan	= FFTW_PLAN_DFT_1D (fft_size,
-	                            reinterpret_cast <fftwf_complex *>(vector),
-	                            reinterpret_cast <fftwf_complex *>(vector),
-	                            FFTW_BACKWARD, FFTW_ESTIMATE);
-}
-
-	common_ifft::~common_ifft () {
-	   FFTW_DESTROY_PLAN (plan);
-	   FFTW_FREE (vector);
-}
-
-Complex	*common_ifft::getVector () {
-	return vector;
-}
-
-void	common_ifft::do_IFFT () {
-	FFTW_EXECUTE	(plan);
-	Scale		(vector);
-}
-
-void	common_ifft::Scale (Complex *Data) {
-const float  Factor = 1.0 / float (fft_size);
-int32_t	Position;
-
-	// scale all entries
-	for (Position = 0; Position < fft_size; Position ++)
-	   Data [Position] *= Factor;
-}
-
 

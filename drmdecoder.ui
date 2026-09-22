@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>545</width>
-    <height>396</height>
+    <width>622</width>
+    <height>374</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,6 +20,13 @@
       <widget class="QLabel" name="bandLabel">
        <property name="text">
         <string>bandLabel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="iqSelector">
+       <property name="text">
+        <string>iq filter</string>
        </property>
       </widget>
      </item>

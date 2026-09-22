@@ -66,6 +66,7 @@ private:
 	std::vector<metrics>	Y2;
 signals:
 	void		show_msc_mer	(float);
+	void		protectionLevel (const QString&);
 };
 
 

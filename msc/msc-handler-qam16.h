@@ -55,6 +55,7 @@ private:
 	int16_t		N1, N2;
 signals:
 	void		show_msc_mer	(float);
+	void		protectionLevel	(const QString&);
 };
 
 

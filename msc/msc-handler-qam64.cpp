@@ -51,11 +51,16 @@ int32_t	highProtected, lowProtected;
 	this	-> qam64Roulette	= qam64Roulette;
 	lengthA				= 0;
 
+	connect (this, &QAM64_SM_Handler::protectionLevel,
+	         m_form, &RadioInterface::protectionLevel);
+
 	for (i = 0; i < theState -> numofStreams; i ++)
 	   lengthA += theState	-> streams [i]. lengthHigh;
 	lengthB		= 0;
 	for (i = 0; i < theState -> numofStreams; i ++)
 	   lengthB += theState	-> streams [i]. lengthLow;
+
+        emit protectionLevel (lengthA == 0 ? "EEP" : "UEP");
 
 	if (lengthA != 0) {	// two real levels
 	   RYlcm = getRYlcm_64 (theState -> protLevelA);

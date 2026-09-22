@@ -44,7 +44,7 @@
 	                                             mscHandler (m_form,
 	                                                           theState),
 	                                             myDecoder () {
-int16_t	RYlcm, i;
+int16_t	RYlcm;
 float	denom;
 //
 //	apply the formula from page 112 (section 7.2.1.1) to determine
@@ -54,20 +54,25 @@ float	denom;
 	this	-> theState	= theState;
 	lengthA			= 0;
 
-	for (i = 0; i < theState -> numofStreams; i ++)
+	connect (this, &QAM16_SM_Handler::protectionLevel,
+	         m_form, &RadioInterface::protectionLevel);
+
+	for (int i = 0; i < theState -> numofStreams; i ++)
 	   lengthA += theState	-> streams [i]. lengthHigh;
 
 	lengthB		= 0;
-	for (i = 0; i < theState -> numofStreams; i ++)
+	for (int i = 0; i < theState -> numofStreams; i ++)
 	   lengthB += theState	-> streams [i]. lengthLow;
 
+	emit protectionLevel (lengthA == 0 ? "EEP" : "UEP");
+	
 	if (lengthA != 0) {	// two real levels
 //	apply formula from section 7.2.1. to compute the number
 //	of MSC cells for the higher protected part given in bytes
 //	   RYlcm	= theState -> getRYlcm_16 (theState -> protLevelA);
 	   RYlcm	= getRYlcm_16 (theState -> protLevelA);
 	   denom	= 0;
-	   for (i = 0; i < 2; i ++)
+	   for (int i = 0; i < 2; i ++)
 //	      denom += theState -> getRp (theState -> protLevelA, i);
 //	      denom += theState -> getRp_qam16 (theState -> protLevelA, i);
 	      denom += getRp_qam16 (theState -> protLevelA, i);
@@ -105,7 +110,7 @@ float	denom;
 	         m_form, SLOT (show_msc_mer (float)));
 }
 
-	QAM16_SM_Handler::~QAM16_SM_Handler	(void) {
+	QAM16_SM_Handler::~QAM16_SM_Handler	() {
 	delete	stream_0;
 	delete	stream_1;
 	delete	Y13mapper_high;
